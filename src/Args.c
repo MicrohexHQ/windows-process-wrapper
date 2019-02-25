@@ -71,7 +71,7 @@ static arg_parse_result_t parse_server_address_opt(program_arguments_t* program_
 
         case 1: /* Value parsed successfully */
             program_arguments->server_address.in_addr = (IN_ADDR*)buf;
-            program_arguments->server_address_is_in6 = 0;
+            program_arguments->server_address_family = AF_INET;
             return ARG_PARSE_SUCCESS;
 
         default: /* Something else went wrong, there's an error in our logic somewhere */
@@ -91,7 +91,7 @@ static arg_parse_result_t parse_server_address_opt(program_arguments_t* program_
 
         case 1: /* Value parsed successfully */
             program_arguments->server_address.in6_addr = (IN6_ADDR*)buf;
-            program_arguments->server_address_is_in6 = 1;
+            program_arguments->server_address_family = AF_INET6;
             return ARG_PARSE_SUCCESS;
 
         default: /* Something else went wrong, there's an error in our logic somewhere */
@@ -157,7 +157,7 @@ static arg_parse_result_t parse_opt(program_arguments_t* program_arguments, LPCW
         handler = get_arg_handler(*opt_name);
 
         if (handler == NULL) {
-            error_push(L"Unknown option: %s", *opt_name);
+            error_push(L"Unknown option: %ls", *opt_name);
             return ARG_PARSE_ERROR;
         }
         
@@ -175,12 +175,12 @@ static arg_parse_result_t parse_opt(program_arguments_t* program_arguments, LPCW
     handler = get_arg_handler(*opt_name);
 
     if (handler == NULL) {
-        error_push(L"Unknown option: %s", *opt_name);
+        error_push(L"Unknown option: %ls", *opt_name);
         return ARG_PARSE_ERROR;
     }
 
     if (handler->parse_value == NULL) {
-        error_push(L"Option %s requires a value", *opt_name);
+        error_push(L"Option %ls requires a value", *opt_name);
         return ARG_PARSE_ERROR;
     }
 
@@ -191,7 +191,7 @@ static void init_program_arguments(program_arguments_t* program_arguments)
 {
     program_arguments->server_port = 0;
     memset(&program_arguments->server_address, 0, sizeof(in_addr_t));
-    program_arguments->server_address_is_in6 = -1;
+    program_arguments->server_address_family = AF_UNSPEC;
     program_arguments->token_size = 0;
     program_arguments->exe_cwd = NULL;
 }
@@ -199,7 +199,7 @@ static void init_program_arguments(program_arguments_t* program_arguments)
 static BOOL validate_program_arguments(program_arguments_t* program_arguments)
 {
     if (program_arguments->token_size == 0) {
-        error_push(L"Process label not supplied");
+        error_push(L"Token size not supplied");
         return FALSE;
     }
 
@@ -238,7 +238,7 @@ BOOL parse_opts(program_arguments_t* program_arguments, const int argc, LPCWSTR*
     }
 
 end_parse_opts:
-    if (program_arguments->server_address_is_in6 == -1) {
+    if (program_arguments->server_address_family == AF_UNSPEC) {
         parse_server_address_opt(program_arguments, L"address", L"127.0.0.1");
     }
 

@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<xs:schema
+  targetNamespace="https://schems.daverandom.com/xsd/amp-job-protococol/0.1"
+  xmlns="https://schems.daverandom.com/xsd/amp-job-protococol/0.1"
+  xmlns:job="https://schems.daverandom.com/xsd/amp-job-protococol/0.1"
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  elementFormDefault="qualified"
+  attributeFormDefault="unqualified">
+
+  <xs:simpleType name="non-empty-string">
+    <xs:annotation>
+      <xs:documentation>String with one or more non-whitespace characters</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[ \t\r\n\v]*[^ \t\r\n\v].*" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="job-id">
+    <xs:annotation>
+      <xs:documentation>36 byte job identifier - intended for (but not restricted to) UUIDs</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Za-z0-9_][A-Za-z0-9_.\-]{34}[A-Za-z0-9_]" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="file-lock-type">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="auto" />
+      <xs:enumeration value="none" />
+      <xs:enumeration value="shared" />
+      <xs:enumeration value="exclusive" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="file-mode">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="auto|[rwaxc][tb+]*" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="environment-var-name">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[^=]*" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="Null">
+    <xs:annotation>
+      <xs:documentation>No attributes or content allowed</xs:documentation>
+    </xs:annotation>
+  </xs:complexType>
+
+  <xs:complexType name="Text">
+    <xs:annotation>
+      <xs:documentation>Non-empty string content with no attributes</xs:documentation>
+    </xs:annotation>
+    <xs:simpleContent>
+      <xs:extension base="non-empty-string" />
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:complexType name="Command">
+    <xs:choice minOccurs="1" maxOccurs="unbounded">
+      <xs:element name="literal" type="Text" />
+      <xs:element name="quote" type="Text" />
+    </xs:choice>
+  </xs:complexType>
+
+  <xs:complexType name="FileLock">
+    <xs:attribute name="type" type="file-lock-type" use="optional" default="auto" />
+    <xs:attribute name="timeout" type="xs:integer" use="optional" default="-1" />
+  </xs:complexType>
+
+  <xs:complexType name="File">
+    <xs:sequence>
+      <xs:element name="lock" type="FileLock" minOccurs="0" maxOccurs="1" />
+    </xs:sequence>
+    <xs:attribute name="path" type="non-empty-string" use="required" />
+    <xs:attribute name="mode" type="file-mode" use="optional" default="auto" />
+  </xs:complexType>
+
+  <xs:complexType name="SocketEndpoint">
+    <xs:attribute name="host" type="non-empty-string" use="required" />
+    <xs:attribute name="port" type="xs:positiveInteger" use="optional" />
+  </xs:complexType>
+
+  <xs:complexType name="Socket">
+    <xs:choice>
+      <xs:element name="endpoint" type="SocketEndpoint" />
+    </xs:choice>
+  </xs:complexType>
+
+  <xs:complexType name="Pipe">
+    <xs:choice>
+      <xs:element name="null" type="Null" />
+      <xs:element name="file" type="File" />
+      <xs:element name="socket" type="Socket" />
+    </xs:choice>
+  </xs:complexType>
+
+  <xs:complexType name="Pipes">
+    <xs:sequence>
+      <xs:element name="stdin" type="Pipe" minOccurs="0" maxOccurs="1" />
+      <xs:element name="stdout" type="Pipe" minOccurs="0" maxOccurs="1" />
+      <xs:element name="stderr" type="Pipe" minOccurs="0" maxOccurs="1" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="EnvironmentVar">
+    <xs:simpleContent>
+      <xs:extension base="xs:string">
+        <xs:attribute name="name" type="environment-var-name" use="required" />
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:complexType name="Environment">
+    <xs:sequence>
+      <xs:element name="var" type="EnvironmentVar" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="Job">
+    <xs:sequence>
+      <xs:element name="command" type="Command" minOccurs="1" maxOccurs="1" />
+      <xs:element name="pipes" type="Pipes" minOccurs="0" maxOccurs="1" />
+      <xs:element ref="environment" minOccurs="0" maxOccurs="1" />
+    </xs:sequence>
+    <xs:attribute name="id" type="job-id" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="JobBatch">
+    <xs:sequence>
+      <xs:element ref="environment" minOccurs="0" maxOccurs="1" />
+      <xs:element ref="job" minOccurs="1" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:element name="environment" type="Environment">
+    <xs:unique name="unique-var-names">
+      <xs:selector xpath="job:var"/>
+      <xs:field xpath="@name"/>
+    </xs:unique>
+  </xs:element>
+
+  <xs:element name="job" type="Job" />
+  
+  <xs:element name="batch" type="JobBatch">
+    <xs:unique name="unique-job-ids">
+      <xs:selector xpath="job:job"/>
+      <xs:field xpath="@id"/>
+    </xs:unique>
+  </xs:element>
+
+</xs:schema>

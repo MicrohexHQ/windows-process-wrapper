@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<batch xmlns="http://schems.daverandom.com/xsd/amp-job-protococol/0.1">
+  <job id="86df3b2a-a4c9-4bd0-a049-4b792278e3a2">
+    <command>
+      <quote>f  </quote>
+      <literal>foo</literal>
+      <literal>foo</literal>
+      <quote>f  </quote>
+      <literal>foo</literal>
+      <quote>f  </quote>
+      <quote>f  </quote>
+      <quote>f  </quote>
+    </command>
+    <pipes>
+      <stdin>
+        <null />
+      </stdin>
+      <stdout>
+        <file path="foo" mode="auto">
+          <lock type="auto" timeout="1000" />
+        </file>
+      </stdout>
+      <stderr>
+        <socket>
+          <endpoint host="foo" port="12345" />
+        </socket>
+      </stderr>
+    </pipes>
+    <environment>
+      <var name="foo">Test</var>
+      <var name="bar">Test</var>
+      <var name="baz">Test</var>
+    </environment>
+  </job>
+</batch>

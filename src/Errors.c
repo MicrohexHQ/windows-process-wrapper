@@ -14,7 +14,7 @@ typedef struct _error_item {
 * Polyfill for vaswprintf()
 * See https://stackoverflow.com/a/40160038/889949
 */
-static int vaswprintf(LPWSTR *strp, LPCWSTR const fmt, va_list ap)
+static int vaswprintf(LPWSTR *strp, WPRINTF_FORMAT fmt, va_list ap)
 {
     // _vscwprintf tells you how big the buffer needs to be
     const int len = _vscwprintf(fmt, ap);
@@ -82,7 +82,7 @@ int errors_count()
     return QueryDepthSList(errors);
 }
 
-BOOL error_push(LPCWSTR const format, ...)
+BOOL error_push(WPRINTF_FORMAT format, ...)
 {
     if (errors == NULL) {
         return FALSE;
@@ -112,7 +112,7 @@ BOOL error_push(LPCWSTR const format, ...)
     return TRUE;
 }
 
-BOOL system_error_push(const int code, LPCWSTR const format, ...)
+BOOL system_error_push(const int code, WPRINTF_FORMAT format, ...)
 {
     LPWSTR errstr = NULL;
 
@@ -124,7 +124,7 @@ BOOL system_error_push(const int code, LPCWSTR const format, ...)
     );
 
     if (format == NULL) {
-        return error_push(L"%d: %s", code, errstr);
+        return error_push(L"%d: %ls", code, errstr);
     }
 
     va_list ap;
@@ -134,7 +134,7 @@ BOOL system_error_push(const int code, LPCWSTR const format, ...)
     vaswprintf(&extra, format, ap);
     va_end(ap);
 
-    return error_push(L"%s: %d: %s", extra, code, errstr);
+    return error_push(L"%ls: %d: %ls", extra, code, errstr);
 }
 
 static LPWSTR error_pop()

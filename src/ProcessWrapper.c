@@ -1,3 +1,4 @@
+#include <fcntl.h>
 #include <stdio.h>
 #include <WS2tcpip.h>
 #include "Errors.h"
@@ -73,6 +74,11 @@ typedef struct _file_socket_pair {
     SOCKET socket;
 } file_socket_pair_t;
 
+typedef struct _overlapped {
+	OVERLAPPED ol;
+	void *data;
+} overlapped_t;
+
 static struct {
     program_arguments_t arguments;
     WSABUF client_tokens;
@@ -106,7 +112,7 @@ static BOOL socket_connect(socket_info_t* socket_info)
         return FALSE;
     }
 
-    if (globals.arguments.server_address_is_in6) {
+    if (globals.arguments.server_address_family == AF_INET6) {
         struct sockaddr_in6 addr;
         namelen = sizeof(addr);
         addr.sin6_family = AF_INET6;
@@ -157,7 +163,7 @@ static BOOL socket_send(const SOCKET socket, const int id, WSABUF *buffers, cons
     const int result = WSASend(socket, buffers, buffer_count, &bytes_written, 0, NULL, NULL);
 
     if (result == SOCKET_ERROR) {
-        system_error_push(WSAGetLastError(), L"Failed to send %s to socket #%d", description, id);
+        system_error_push(WSAGetLastError(), L"Failed to send %ls to socket #%d", description, id);
         return FALSE;
     }
 
@@ -166,7 +172,7 @@ static BOOL socket_send(const SOCKET socket, const int id, WSABUF *buffers, cons
     }
 
     if (bytes_written != length) {
-        error_push(L"Failed to send %s to socket #%d: sent %d of %d bytes", description, id, bytes_written, length);
+        error_push(L"Failed to send %ls to socket #%d: sent %d of %d bytes", description, id, bytes_written, length);
         return FALSE;
     }
 
@@ -241,7 +247,7 @@ static BOOL socket_process_connect_readable(socket_info_t* socket_info)
 
     if (buffer.buf[1] != HANDSHAKE_STATUS_SUCCESS) {
         error_push(
-            L"Handshake failed for socket #%d: Server rejected connection: %d: %s", 
+            L"Handshake failed for socket #%d: Server rejected connection: %d: %ls", 
             socket_info->id, buffer.buf[1], 
             buffer.buf[1] < HANDSHAKE_STATUS_OPTION_COUNT ? handshake_status_messages[(unsigned char)buffer.buf[1]] : L"Unknown error"
         );
@@ -309,14 +315,12 @@ static BOOL socketset_have_pending_connect(socket_info_t **sockets)
  */
 static BOOL socketset_create(socket_info_t** sockets, int count)
 {
-    const int address_family = globals.arguments.server_address_is_in6 ? AF_INET6 : AF_INET;
-
     for (int i = 0; i < count; i++) {
         socket_info_t* socket_info = malloc(sizeof(socket_info_t));
 
         socket_info->id = i;
         socket_info->state = SOCKET_STATE_WAIT_CONNECT;
-        socket_info->socket = socket(address_family, SOCK_STREAM, IPPROTO_TCP);
+        socket_info->socket = socket(globals.arguments.server_address_family, SOCK_STREAM, IPPROTO_TCP);
 
         if (socket_info->socket == INVALID_SOCKET) {
             error_push(L"Failed to create socket #%d", socket_info->id);
